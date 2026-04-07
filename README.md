@@ -32,7 +32,7 @@ medical-rag-chatbot/
 
 ### 1. Install Ollama (free, local LLM)
 
-# Windows → download from https://ollama.com/download
+Windows → download from https://ollama.com/download
 
 
 ### 2. Pull a free model (choose one)
