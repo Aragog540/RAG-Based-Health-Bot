@@ -1,6 +1,6 @@
 # 🏥 Medical RAG Chatbot — LangGraph + FastAPI
 
-A **100% free** medical book chatbot using LangGraph for agentic RAG,
+A medical book chatbot using LangGraph for agentic RAG,
 FastAPI for the backend, ChromaDB as the vector store, and
 **Ollama** (runs local LLMs — no API keys needed).
 
@@ -31,12 +31,9 @@ medical-rag-chatbot/
 ## ⚙️ Prerequisites
 
 ### 1. Install Ollama (free, local LLM)
-```bash
-# Linux/macOS
-curl -fsSL https://ollama.com/install.sh | sh
 
 # Windows → download from https://ollama.com/download
-```
+
 
 ### 2. Pull a free model (choose one)
 ```bash
@@ -55,13 +52,13 @@ cd medical-rag-chatbot
 
 # 2. Create virtual environment
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
+Windows: venv\Scripts\activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
 
 # 4. Place your medical PDF in data/
-cp /path/to/your/medical_book.pdf data/
+copy C:\path\to\your\medical_book.pdf data\
 
 # 5. Ingest PDF (chunks it, embeds it, stores in ChromaDB)
 python scripts/ingest.py --pdf data/medical_book.pdf
