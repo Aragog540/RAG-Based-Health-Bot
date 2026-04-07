@@ -47,26 +47,39 @@ ollama pull phi3            # 2.3 GB — lightest option
 ## 🚀 Quick Start
 
 ```bash
-# 1. Clone / unzip the project, then:
+# 1. Go to project folder
 cd medical-rag-chatbot
 
 # 2. Create virtual environment
 python -m venv venv
-Windows: venv\Scripts\activate
 
-# 3. Install dependencies
+# 3. Activate virtual environment
+
+# CMD:
+venv\Scripts\activate
+
+# PowerShell:
+venv\Scripts\Activate.ps1
+
+# 4. Install dependencies
 pip install -r requirements.txt
 
-# 4. Place your medical PDF in data/
+# 5. Place your medical PDF in data folder
 copy C:\path\to\your\medical_book.pdf data\
 
-# 5. Ingest PDF (chunks it, embeds it, stores in ChromaDB)
-python scripts/ingest.py --pdf data/medical_book.pdf
+# 6. Ingest PDF (creates embeddings in ChromaDB)
+python scripts\ingest.py --pdf data\medical_book.pdf
 
-# 6. Start Ollama in a separate terminal
+# 7. Make sure Ollama is installed and running
+ollama --version
+
+# (Optional – only if not running automatically)
 ollama serve
 
-# 7. Run the FastAPI server
+# 8. Pull model (only first time)
+ollama pull llama3
+
+# 9. Run FastAPI server
 uvicorn app.main:app --reload --port 8000
 ```
 
