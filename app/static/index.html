@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Health Bot Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f7f3;
+      --bg-2: #e8efe6;
+      --panel: #ffffff;
+      --ink: #1a2a22;
+      --muted: #5d7066;
+      --brand: #0f766e;
+      --brand-2: #d97706;
+      --danger: #b42318;
+      --ok: #0f8f57;
+      --ring: rgba(15, 118, 110, 0.35);
+      --shadow: 0 10px 35px rgba(18, 36, 26, 0.12);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Manrope, Segoe UI, sans-serif;
+      background:
+        radial-gradient(circle at 8% 8%, #cde6cf 0%, transparent 38%),
+        radial-gradient(circle at 92% 14%, #ffe4bf 0%, transparent 32%),
+        linear-gradient(160deg, var(--bg), var(--bg-2));
+      animation: pageIn 0.6s ease-out;
+    }
+
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .shell {
+      width: min(1150px, 92vw);
+      margin: 24px auto 42px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero {
+      background: linear-gradient(120deg, #0f766e 0%, #115e59 48%, #0f766e 100%);
+      color: #f6fffd;
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 26px;
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      gap: 14px;
+    }
+
+    .hero:after {
+      content: "";
+      position: absolute;
+      width: 290px;
+      height: 290px;
+      right: -90px;
+      top: -120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.2), rgba(255,255,255,0));
+      pointer-events: none;
+    }
+
+    .tag {
+      width: fit-content;
+      font: 700 12px/1 Space Grotesk, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 999px;
+      padding: 8px 11px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Space Grotesk, Manrope, sans-serif;
+      font-size: clamp(1.65rem, 3.5vw, 2.35rem);
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(245, 255, 252, 0.92);
+      max-width: 72ch;
+      font-size: 1rem;
+    }
+
+    .meta-row {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .meta-card {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.24);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+
+    .meta-label {
+      font-size: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(241, 255, 252, 0.78);
+    }
+
+    .meta-value {
+      margin-top: 6px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      border: 1px solid rgba(28, 44, 35, 0.08);
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 1.08rem;
+      font-family: Space Grotesk, sans-serif;
+      letter-spacing: -0.01em;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="file"] {
+      width: 100%;
+      border: 1px solid #c7d4cc;
+      border-radius: 12px;
+      background: #fbfdfb;
+      color: var(--ink);
+      padding: 12px 12px;
+      font: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea:focus,
+    input:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 4px var(--ring);
+    }
+
+    textarea {
+      min-height: 112px;
+      resize: vertical;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font: 700 0.93rem/1 Manrope, sans-serif;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: linear-gradient(120deg, var(--brand), #0b5f59);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(15, 118, 110, 0.28);
+    }
+
+    .btn-secondary {
+      background: #edf3ef;
+      color: #274138;
+      border: 1px solid #d2ddd6;
+    }
+
+    .btn-accent {
+      background: linear-gradient(120deg, var(--brand-2), #c16403);
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(217, 119, 6, 0.27);
+    }
+
+    .btn-danger {
+      background: #fff1ef;
+      color: var(--danger);
+      border: 1px solid #f1c0ba;
+    }
+
+    .output {
+      margin-top: 14px;
+      background: #f7fbf8;
+      border: 1px solid #dce7df;
+      border-radius: 12px;
+      padding: 14px;
+      min-height: 120px;
+    }
+
+    .answer {
+      white-space: pre-wrap;
+      line-height: 1.55;
+    }
+
+    .sources {
+      margin-top: 12px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .source-card {
+      border: 1px solid #dbe7de;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .source-meta {
+      font-size: 0.78rem;
+      color: #496457;
+      margin-bottom: 5px;
+      font-weight: 700;
+    }
+
+    .source-content {
+      font-size: 0.88rem;
+      color: #274138;
+      line-height: 1.45;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--danger); }
+
+    .progress-wrap {
+      margin-top: 10px;
+      display: none;
+      gap: 8px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: #dce9e2;
+      overflow: hidden;
+      border: 1px solid #c4d7cd;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0f766e 0%, #d97706 100%);
+      transition: width 0.35s ease;
+    }
+
+    .progress-label {
+      font-size: 0.82rem;
+      color: #355345;
+      font-weight: 700;
+    }
+
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.87rem;
+      color: #2f4d40;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--brand);
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.35; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+    }
+
+    .foot {
+      text-align: center;
+      color: #567264;
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .meta-row { grid-template-columns: 1fr; }
+      .shell { width: min(100%, 94vw); }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <span class="tag">Medical RAG Console</span>
+      <h1>Talk to your medical knowledge base in plain language.</h1>
+      <p>Ask a question, upload a new PDF, and inspect sources, all from one interface designed for non-technical users.</p>
+      <div class="meta-row">
+        <div class="meta-card">
+          <div class="meta-label">Service</div>
+          <div class="meta-value" id="serviceStatus">Checking...</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">LLM</div>
+          <div class="meta-value" id="llmModel">-</div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Indexed Chunks</div>
+          <div class="meta-value" id="chunkCount">-</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="panel">
+        <h2>Ask a Medical Question</h2>
+        <p class="muted">Tip: Ask clear, specific questions for better answers and source grounding.</p>
+        <div class="row" style="margin-top:10px;">
+          <textarea id="question" placeholder="Example: What are the common symptoms and first-line management steps for hypertension?"></textarea>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="askBtn" class="btn-primary">Get Answer</button>
+          <button id="healthBtn" class="btn-secondary">Refresh Health</button>
+          <button id="sourcesBtn" class="btn-secondary">Preview Sources</button>
+        </div>
+        <div class="status" id="chatStatus"></div>
+        <div class="output" id="chatOutput">
+          <div class="muted">Answer will appear here.</div>
+        </div>
+      </article>
+
+      <aside class="panel">
+        <h2>Knowledge Base</h2>
+        <p class="muted">Upload a medical PDF to add new context your bot can answer from.</p>
+        <div class="row" style="margin-top:10px;">
+          <input id="pdfFile" type="file" accept="application/pdf" />
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="uploadBtn" class="btn-accent">Upload and Ingest PDF</button>
+          <button id="resetBtn" class="btn-danger">Reset Collection</button>
+        </div>
+        <div class="progress-wrap" id="ingestProgressWrap">
+          <div class="progress-track"><div class="progress-fill" id="ingestProgressFill"></div></div>
+          <div class="progress-label" id="ingestProgressLabel">0%</div>
+        </div>
+        <div class="status" id="ingestStatus"></div>
+
+        <div class="output" style="margin-top:14px; min-height:150px;">
+          <h2 style="margin-top:0; font-size:1rem;">Source Preview</h2>
+          <div id="sourcesPreview" class="muted">No preview loaded yet.</div>
+        </div>
+      </aside>
+    </section>
+
+    <div class="foot">Built on FastAPI + LangGraph + Ollama + ChromaDB</div>
+  </main>
+
+  <script>
+    const serviceStatus = document.getElementById("serviceStatus");
+    const llmModel = document.getElementById("llmModel");
+    const chunkCount = document.getElementById("chunkCount");
+
+    const questionEl = document.getElementById("question");
+    const chatStatus = document.getElementById("chatStatus");
+    const chatOutput = document.getElementById("chatOutput");
+    const sourcesPreview = document.getElementById("sourcesPreview");
+    const ingestStatus = document.getElementById("ingestStatus");
+
+    const askBtn = document.getElementById("askBtn");
+    const healthBtn = document.getElementById("healthBtn");
+    const sourcesBtn = document.getElementById("sourcesBtn");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const pdfFileEl = document.getElementById("pdfFile");
+    const ingestProgressWrap = document.getElementById("ingestProgressWrap");
+    const ingestProgressFill = document.getElementById("ingestProgressFill");
+    const ingestProgressLabel = document.getElementById("ingestProgressLabel");
+
+    function delay(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function setIngestProgress(percent, label) {
+      const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+      ingestProgressWrap.style.display = "grid";
+      ingestProgressFill.style.width = `${safePercent}%`;
+      ingestProgressLabel.textContent = label ? `${safePercent}% - ${label}` : `${safePercent}%`;
+    }
+
+    function hideIngestProgress() {
+      ingestProgressWrap.style.display = "none";
+      ingestProgressFill.style.width = "0%";
+      ingestProgressLabel.textContent = "0%";
+    }
+
+    function setStatus(el, text, isError = false) {
+      el.textContent = text;
+      el.className = "status " + (isError ? "err" : "ok");
+    }
+
+    function setLoading(el, text) {
+      el.className = "status";
+      el.innerHTML = `<span class=\"loading\"><span class=\"dot\"></span>${text}</span>`;
+    }
+
+    async function apiCall(path, options = {}) {
+      const response = await fetch(path, options);
+      const contentType = response.headers.get("content-type") || "";
+      const payload = contentType.includes("application/json")
+        ? await response.json()
+        : await response.text();
+
+      if (!response.ok) {
+        const detail = payload && payload.detail
+          ? payload.detail
+          : (typeof payload === "string" ? payload : "Request failed");
+        throw new Error(detail);
+      }
+      return payload;
+    }
+
+    async function loadHealth() {
+      try {
+        const data = await apiCall("/health");
+        serviceStatus.textContent = data.status === "ok" ? "Healthy" : data.status;
+        llmModel.textContent = data.llm_model;
+        chunkCount.textContent = data.total_chunks;
+      } catch (error) {
+        serviceStatus.textContent = "Unavailable";
+        llmModel.textContent = "-";
+        chunkCount.textContent = "-";
+        setStatus(chatStatus, `Health check failed: ${error.message}`, true);
+      }
+    }
+
+    async function askQuestion() {
+      const question = questionEl.value.trim();
+      if (!question) {
+        setStatus(chatStatus, "Please enter a question first.", true);
+        return;
+      }
+
+      askBtn.disabled = true;
+      setLoading(chatStatus, "Generating answer...");
+
+      const sessionId = localStorage.getItem("health_bot_session") || crypto.randomUUID();
+      localStorage.setItem("health_bot_session", sessionId);
+
+      try {
+        const data = await apiCall("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, session_id: sessionId }),
+        });
+
+        const sourcesHtml = (data.sources || []).length
+          ? `<div class=\"sources\">${data.sources.map((s) => {
+              const page = s.page ? `Page ${s.page}` : "Page n/a";
+              const src = s.source || "Unknown source";
+              const content = (s.content || "").replace(/</g, "&lt;");
+              return `
+                <article class=\"source-card\">
+                  <div class=\"source-meta\">${src} | ${page}</div>
+                  <div class=\"source-content\">${content}</div>
+                </article>
+              `;
+            }).join("")}</div>`
+          : "<div class=\"muted\">No sources returned.</div>";
+
+        const answer = (data.answer || "").replace(/</g, "&lt;");
+        chatOutput.innerHTML = `
+          <div class=\"answer\">${answer}</div>
+          <div style=\"margin-top:10px; font-size:0.84rem; color:#4a6457; font-weight:700;\">
+            Grounded: ${data.grounded ? "Yes" : "No"}
+          </div>
+          ${sourcesHtml}
+        `;
+
+        setStatus(chatStatus, "Answer generated successfully.");
+        await loadHealth();
+      } catch (error) {
+        setStatus(chatStatus, `Chat failed: ${error.message}`, true);
+      } finally {
+        askBtn.disabled = false;
+      }
+    }
+
+    async function previewSources() {
+      sourcesBtn.disabled = true;
+      sourcesPreview.innerHTML = "<span class=\"loading\"><span class=\"dot\"></span>Loading source preview...</span>";
+      try {
+        const data = await apiCall("/sources?limit=5");
+        const sample = data.sample || [];
+        if (!sample.length) {
+          sourcesPreview.innerHTML = "<span class='muted'>No sources indexed yet. Upload and ingest a PDF first.</span>";
+        } else {
+          sourcesPreview.innerHTML = sample.map((item) => {
+            const src = item.metadata && item.metadata.source ? item.metadata.source : "Unknown source";
+            const page = item.metadata && item.metadata.page ? `Page ${item.metadata.page}` : "Page n/a";
+            const text = (item.content_preview || "").replace(/</g, "&lt;");
+            return `
+              <article class=\"source-card\" style=\"margin-bottom:8px;\">
+                <div class=\"source-meta\">${src} | ${page}</div>
+                <div class=\"source-content\">${text}</div>
+              </article>
+            `;
+          }).join("");
+        }
+      } catch (error) {
+        sourcesPreview.innerHTML = `<span style=\"color:#b42318;\">Failed to load sources: ${error.message}</span>`;
+      } finally {
+        sourcesBtn.disabled = false;
+      }
+    }
+
+    async function uploadPdf() {
+      const file = pdfFileEl.files && pdfFileEl.files[0];
+      if (!file) {
+        setStatus(ingestStatus, "Please choose a PDF file.", true);
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      setLoading(ingestStatus, "Uploading document...");
+      setIngestProgress(0, "Queued");
+
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const startData = await apiCall("/ingest/start", {
+          method: "POST",
+          body: formData,
+        });
+
+        const jobId = startData.job_id;
+        if (!jobId) {
+          throw new Error("Ingestion job was not created.");
+        }
+
+        let done = false;
+        while (!done) {
+          const statusData = await apiCall(`/ingest/status/${jobId}`);
+          const progressPct = statusData.progress_pct ?? 0;
+          const message = statusData.message || "Processing";
+          setIngestProgress(progressPct, message);
+
+          if (statusData.status === "completed") {
+            const chunksAdded = statusData.chunks_added ?? 0;
+            const totalChunks = statusData.total_chunks ?? 0;
+            setStatus(
+              ingestStatus,
+              `Successfully ingested '${file.name}'. Added ${chunksAdded} chunks. Total: ${totalChunks}.`
+            );
+            setIngestProgress(100, "Completed");
+            done = true;
+            break;
+          }
+
+          if (statusData.status === "failed") {
+            throw new Error(statusData.error || "Ingestion failed");
+          }
+
+          await delay(1200);
+        }
+
+        pdfFileEl.value = "";
+        await loadHealth();
+        await previewSources();
+      } catch (error) {
+        setStatus(ingestStatus, `Ingest failed: ${error.message}`, true);
+        hideIngestProgress();
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    }
+
+    async function resetCollection() {
+      const confirmed = window.confirm(
+        "This will remove all indexed documents. Continue?"
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      resetBtn.disabled = true;
+      setLoading(ingestStatus, "Resetting collection...");
+
+      try {
+        const data = await apiCall("/reset", { method: "DELETE" });
+        setStatus(ingestStatus, data.message || "Collection cleared.");
+        hideIngestProgress();
+        chatOutput.innerHTML = "<div class='muted'>Answer will appear here.</div>";
+        sourcesPreview.innerHTML = "<span class='muted'>No preview loaded yet.</span>";
+        await loadHealth();
+      } catch (error) {
+        setStatus(ingestStatus, `Reset failed: ${error.message}`, true);
+      } finally {
+        resetBtn.disabled = false;
+      }
+    }
+
+    askBtn.addEventListener("click", askQuestion);
+    healthBtn.addEventListener("click", loadHealth);
+    sourcesBtn.addEventListener("click", previewSources);
+    uploadBtn.addEventListener("click", uploadPdf);
+    resetBtn.addEventListener("click", resetCollection);
+
+    questionEl.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        askQuestion();
+      }
+    });
+
+    loadHealth();
+  </script>
+</body>
+</html>

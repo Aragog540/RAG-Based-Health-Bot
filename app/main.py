@@ -13,12 +13,14 @@ Endpoints:
 
 from __future__ import annotations
 
+import threading
 import uuid
 from pathlib import Path
-from typing import List
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, status
+from fastapi import FastAPI, HTTPException, UploadFile, File, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 
 from app.config import settings
@@ -31,6 +33,76 @@ from app.models import (
 )
 from app.graph import run_rag
 from app.retriever import collection_count, reset_collection
+
+
+_ingest_jobs: dict[str, dict[str, Any]] = {}
+_ingest_jobs_lock = threading.Lock()
+
+
+def _set_ingest_job(job_id: str, **updates: Any) -> None:
+    with _ingest_jobs_lock:
+        if job_id not in _ingest_jobs:
+            _ingest_jobs[job_id] = {}
+        _ingest_jobs[job_id].update(updates)
+
+
+def _compute_progress_percent(stage: str, current: int, total: int) -> int:
+    safe_total = max(total, 1)
+    ratio = max(0.0, min(1.0, current / safe_total))
+    if stage == "load":
+        return int(ratio * 10)
+    if stage == "chunk":
+        return 10 + int(ratio * 20)
+    if stage == "embed":
+        return 30 + int(ratio * 69)
+    if stage == "complete":
+        return 100
+    return int(ratio * 100)
+
+
+def _run_ingest_job(job_id: str, tmp_path: Path, safe_name: str) -> None:
+    from scripts.ingest import ingest_pdf_file
+
+    def _progress(stage: str, current: int, total: int, message: str) -> None:
+        _set_ingest_job(
+            job_id,
+            stage=stage,
+            status="running",
+            current=current,
+            total=total,
+            progress_pct=_compute_progress_percent(stage, current, total),
+            message=message,
+        )
+
+    try:
+        _set_ingest_job(
+            job_id,
+            status="running",
+            progress_pct=0,
+            stage="queued",
+            message="Queued for processing",
+            filename=safe_name,
+        )
+        chunks_added = ingest_pdf_file(str(tmp_path), progress_callback=_progress)
+        _set_ingest_job(
+            job_id,
+            status="completed",
+            progress_pct=100,
+            stage="complete",
+            message="Ingestion completed",
+            chunks_added=chunks_added,
+            total_chunks=collection_count(),
+        )
+    except Exception as exc:
+        _set_ingest_job(
+            job_id,
+            status="failed",
+            stage="failed",
+            message="Ingestion failed",
+            error=str(exc),
+        )
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 # ── App setup ────────────────────────────────────────────────────────────────
@@ -56,6 +128,11 @@ app.add_middleware(
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
+
+@app.get("/", tags=["UI"])
+async def ui_home():
+    """Serve the user-facing web UI."""
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
@@ -153,6 +230,51 @@ async def ingest_pdf(file: UploadFile = File(...)):
         chunks_added=chunks_added,
         total_chunks=collection_count(),
     )
+
+
+@app.post("/ingest/start", tags=["Ingestion"])
+async def ingest_pdf_start(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    """Start asynchronous PDF ingestion and return a job ID for progress polling."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are supported.",
+        )
+
+    safe_name = Path(file.filename).name
+    job_id = str(uuid.uuid4())
+    tmp_path = Path("temp") / f"{job_id}_{safe_name}"
+    tmp_path.parent.mkdir(exist_ok=True)
+
+    content = await file.read()
+    tmp_path.write_bytes(content)
+
+    _set_ingest_job(
+        job_id,
+        status="queued",
+        progress_pct=0,
+        stage="queued",
+        current=0,
+        total=1,
+        message="Upload received",
+        filename=safe_name,
+    )
+
+    background_tasks.add_task(_run_ingest_job, job_id, tmp_path, safe_name)
+
+    return {"job_id": job_id, "status": "queued", "message": "Ingestion job started"}
+
+
+@app.get("/ingest/status/{job_id}", tags=["Ingestion"])
+async def ingest_pdf_status(job_id: str):
+    """Get ingestion job status and progress percentage."""
+    with _ingest_jobs_lock:
+        job = _ingest_jobs.get(job_id)
+
+    if job is None:
+        raise HTTPException(status_code=404, detail="Ingestion job not found")
+
+    return job
 
 
 @app.get("/sources", tags=["System"])

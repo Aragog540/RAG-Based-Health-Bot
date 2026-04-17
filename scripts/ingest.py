@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Callable
 
 # Allow running from project root
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -32,6 +33,8 @@ from app.config import settings
 from app.retriever import add_documents, collection_count
 
 console = Console()
+
+ProgressCallback = Callable[[str, int, int, str], None]
 
 
 def load_pdf(pdf_path: str) -> list[Document]:
@@ -84,9 +87,15 @@ def chunk_documents(docs: list[Document]) -> list[Document]:
     return chunks
 
 
-def ingest_pdf_file(pdf_path: str) -> int:
+def ingest_pdf_file(
+    pdf_path: str,
+    progress_callback: ProgressCallback | None = None,
+) -> int:
     """Full pipeline: load → chunk → embed → store. Returns chunks added."""
     console.rule("[bold blue]Medical Book Ingestion[/bold blue]")
+
+    if progress_callback:
+        progress_callback("load", 0, 1, "Loading PDF")
 
     # 1. Load
     docs = load_pdf(pdf_path)
@@ -94,8 +103,14 @@ def ingest_pdf_file(pdf_path: str) -> int:
         console.print("[red]❌ No text extracted. Is this a scanned PDF?[/red]")
         raise ValueError("No extractable text found in PDF.")
 
+    if progress_callback:
+        progress_callback("load", 1, 1, f"Loaded {len(docs)} pages")
+
     # 2. Chunk
     chunks = chunk_documents(docs)
+
+    if progress_callback:
+        progress_callback("chunk", 1, 1, f"Created {len(chunks)} chunks")
 
     # 3. Embed + store
     console.print(
@@ -106,12 +121,26 @@ def ingest_pdf_file(pdf_path: str) -> int:
     # Embed in batches of 50 to avoid memory issues
     batch_size = 50
     total_added = 0
+    total_batches = max(1, (len(chunks) + batch_size - 1) // batch_size)
+
+    if progress_callback:
+        progress_callback("embed", 0, total_batches, "Starting embeddings")
+
+    batch_number = 0
     for i in track(
         range(0, len(chunks), batch_size), description="Embedding batches..."
     ):
+        batch_number += 1
         batch = chunks[i : i + batch_size]
         add_documents(batch)
         total_added += len(batch)
+        if progress_callback:
+            progress_callback(
+                "embed",
+                batch_number,
+                total_batches,
+                f"Embedded batch {batch_number}/{total_batches}",
+            )
 
     console.rule()
     console.print(
@@ -120,6 +149,15 @@ def ingest_pdf_file(pdf_path: str) -> int:
     console.print(
         f"[dim]Total chunks in collection: {collection_count()}[/dim]"
     )
+
+    if progress_callback:
+        progress_callback(
+            "complete",
+            1,
+            1,
+            f"Done! Added {total_added} chunks",
+        )
+
     return total_added
 
 

@@ -8,7 +8,6 @@ Completely free — no external API calls.
 from __future__ import annotations
 
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
@@ -76,11 +75,22 @@ def collection_count() -> int:
 
 
 def reset_collection() -> None:
-    """Delete all documents from the collection."""
+    """Delete all documents from the collection and reset cache."""
     global _vectorstore
-    client = chromadb.PersistentClient(
-        path=settings.chroma_persist_dir,
-        settings=ChromaSettings(anonymized_telemetry=False),
-    )
-    client.delete_collection(settings.chroma_collection_name)
-    _vectorstore = None  # force re-creation on next call
+    _vectorstore = None
+
+    client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
+
+    # Try hard delete first (fast and complete)
+    try:
+        client.delete_collection(settings.chroma_collection_name)
+    except Exception:
+        pass
+
+    # Always ensure an empty collection exists after reset
+    collection = client.get_or_create_collection(settings.chroma_collection_name)
+    try:
+        collection.delete(where={})
+    except Exception:
+        # If clear-by-filter is unsupported, ignore — collection is already recreated.
+        pass

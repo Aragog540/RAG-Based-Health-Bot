@@ -19,6 +19,7 @@ No cloud API keys are required.
   - relevance grading
   - answer generation
   - grounding check
+- Built-in user web UI at / for chat and ingestion
 - REST API with Swagger docs
 - Health and source inspection endpoints
 - Reset endpoint to clear indexed data
@@ -95,7 +96,13 @@ py -3.11 scripts\ingest.py --pdf data\Medical_book.pdf
 py -3.11 -m uvicorn app.main:app --reload --port 8000
 ```
 
-4. Open API docs:
+4. Open user UI:
+
+```text
+http://127.0.0.1:8000/
+```
+
+5. Open API docs:
 
 ```text
 http://127.0.0.1:8000/docs
@@ -105,13 +112,12 @@ http://127.0.0.1:8000/docs
 
 | Method | Endpoint | Description |
 |---|---|---|
+| GET | / | User web interface |
 | GET | /health | Service status, model info, chunk count |
 | POST | /chat | Ask a question against indexed documents |
 | POST | /ingest | Upload a PDF and ingest via API |
 | GET | /sources | Preview indexed chunks |
 | DELETE | /reset | Clear all indexed documents |
-
-Note: the root endpoint / is not defined, so a 404 there is expected.
 
 ## Example Requests
 
