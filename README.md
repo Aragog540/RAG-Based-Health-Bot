@@ -115,7 +115,9 @@ http://127.0.0.1:8000/docs
 | GET | / | User web interface |
 | GET | /health | Service status, model info, chunk count |
 | POST | /chat | Ask a question against indexed documents |
-| POST | /ingest | Upload a PDF and ingest via API |
+| POST | /ingest | Upload a PDF and ingest via API (blocking) |
+| POST | /ingest/start | Start async PDF ingestion, returns job_id |
+| GET | /ingest/status/{job_id} | Poll ingestion progress (0-100%) |
 | GET | /sources | Preview indexed chunks |
 | DELETE | /reset | Clear all indexed documents |
 
