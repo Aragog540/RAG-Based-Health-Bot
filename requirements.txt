@@ -25,3 +25,4 @@ langchain-text-splitters==0.3.0
 python-dotenv==1.0.1
 rich==13.8.0                     # pretty terminal output
 httpx==0.27.2                    # for health checks / tests
+pytest==9.0.3
