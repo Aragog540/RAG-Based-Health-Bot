@@ -213,6 +213,3 @@ This project is currently validated with Python 3.11.
 
 Python 3.13 may fail with some pinned package builds in this dependency set.
 
-## License
-
-Add your preferred license here (for example: MIT).
