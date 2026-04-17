@@ -5,11 +5,15 @@ All tuneable settings in one place.
 No API keys needed — everything runs locally via Ollama.
 """
 
-from pydantic_settings import BaseSettings
-from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
+
     # ── Ollama ──────────────────────────────────────────────
     ollama_base_url: str = "http://localhost:11434"
 
@@ -32,10 +36,5 @@ class Settings(BaseSettings):
     app_title: str = "Medical RAG Chatbot"
     app_version: str = "1.0.0"
     debug: bool = False
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-
 
 settings = Settings()
