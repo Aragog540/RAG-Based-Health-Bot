@@ -1,24 +1,15 @@
-"""
-tests/test_api.py
-─────────────────
-Basic tests for the FastAPI endpoints.
-
-Run with:
-    pytest tests/ -v
-
-Make sure the server is running:
-    uvicorn app.main:app --port 8000
-"""
+"""Basic tests for the FastAPI endpoints."""
 
 import pytest
-import httpx
+from fastapi.testclient import TestClient
 
-BASE_URL = "http://localhost:8000"
+from app.main import app
 
 
 @pytest.fixture(scope="session")
 def client():
-    return httpx.Client(base_url=BASE_URL, timeout=60.0)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 class TestHealth:
