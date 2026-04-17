@@ -172,7 +172,7 @@ async def chat(request: ChatRequest):
         )
 
     try:
-        result = run_rag(request.question)
+        result = run_rag(request.question, request.language)
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -190,6 +190,7 @@ async def chat(request: ChatRequest):
 
     return ChatResponse(
         answer=result["answer"],
+        language=request.language,
         sources=sources,
         grounded=result["grounded"],
         session_id=request.session_id or str(uuid.uuid4()),

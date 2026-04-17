@@ -20,6 +20,7 @@ No cloud API keys are required.
   - answer generation
   - grounding check
 - Built-in user web UI at / for chat and ingestion
+- Multilingual answers with language-aware retrieval translation
 - REST API with Swagger docs
 - Health and source inspection endpoints
 - Reset endpoint to clear indexed data
@@ -133,9 +134,11 @@ Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/health |
 Chat:
 
 ```powershell
-$body = @{ question = "What are the symptoms of Type 2 Diabetes?" } | ConvertTo-Json
+$body = @{ question = "What are the symptoms of Type 2 Diabetes?"; language = "es" } | ConvertTo-Json
 Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8000/chat -Method POST -ContentType "application/json" -Body $body | Select-Object -ExpandProperty Content
 ```
+
+The `language` field is optional. Supported examples include `en`, `es`, `fr`, `de`, `pt`, `hi`, `bn`, `gu`, `ml`, `mr`, `ta`, `te`, `kn`, `pa`, `ur`, `as`, `or`, `ne`, `bho`, and `ar`.
 
 Ingest via API:
 

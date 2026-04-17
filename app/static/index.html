@@ -152,7 +152,8 @@
 
     textarea,
     input[type="text"],
-    input[type="file"] {
+    input[type="file"],
+    select {
       width: 100%;
       border: 1px solid #d9d5cf;
       border-radius: 12px;
@@ -164,7 +165,8 @@
     }
 
     textarea:focus,
-    input:focus {
+    input:focus,
+    select:focus {
       outline: none;
       border-color: var(--brand);
       box-shadow: 0 0 0 4px var(--ring);
@@ -356,6 +358,36 @@
       <article class="panel">
         <h2>Ask a Medical Question</h2>
         <p class="muted">Tip: Ask clear, specific questions for better answers and source grounding.</p>
+        <div class="row" style="margin-top:10px; align-items:stretch;">
+          <div style="min-width: 220px; flex: 0 0 240px;">
+            <label class="muted" for="language" style="display:block; margin-bottom:6px; font-weight:700;">Answer language</label>
+            <select id="language">
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="pt">Portuguese</option>
+              <option value="hi">Hindi</option>
+              <option value="bn">Bengali</option>
+              <option value="gu">Gujarati</option>
+              <option value="ml">Malayalam</option>
+              <option value="mr">Marathi</option>
+              <option value="ta">Tamil</option>
+              <option value="te">Telugu</option>
+              <option value="kn">Kannada</option>
+              <option value="pa">Punjabi</option>
+              <option value="ur">Urdu</option>
+              <option value="as">Assamese</option>
+              <option value="or">Odia</option>
+              <option value="ne">Nepali</option>
+              <option value="bho">Bhojpuri</option>
+              <option value="ar">Arabic</option>
+            </select>
+          </div>
+          <div style="flex: 1; align-self:end;">
+            <div class="muted">Questions can be asked in any supported language. The answer will follow the selected language.</div>
+          </div>
+        </div>
         <div class="row" style="margin-top:10px;">
           <textarea id="question" placeholder="Example: What are the common symptoms and first-line management steps for hypertension?"></textarea>
         </div>
@@ -402,6 +434,7 @@
     const chunkCount = document.getElementById("chunkCount");
 
     const questionEl = document.getElementById("question");
+    const languageEl = document.getElementById("language");
     const chatStatus = document.getElementById("chatStatus");
     const chatOutput = document.getElementById("chatOutput");
     const sourcesPreview = document.getElementById("sourcesPreview");
@@ -492,7 +525,11 @@
         const data = await apiCall("/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question, session_id: sessionId }),
+          body: JSON.stringify({
+            question,
+            language: languageEl.value,
+            session_id: sessionId,
+          }),
         });
 
         const sourcesHtml = (data.sources || []).length
@@ -648,6 +685,10 @@
     uploadBtn.addEventListener("click", uploadPdf);
     resetBtn.addEventListener("click", resetCollection);
 
+    languageEl.addEventListener("change", () => {
+      document.documentElement.lang = languageEl.value;
+    });
+
     questionEl.addEventListener("keydown", (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
         askQuestion();
@@ -655,6 +696,7 @@
     });
 
     loadHealth();
+    document.documentElement.lang = languageEl.value;
   </script>
 </body>
 </html>

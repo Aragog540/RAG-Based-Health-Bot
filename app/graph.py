@@ -24,12 +24,43 @@ from app.config import settings
 from app.retriever import get_retriever
 
 
+LANGUAGE_NAMES = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "hi": "Hindi",
+    "bn": "Bengali",
+    "gu": "Gujarati",
+    "ml": "Malayalam",
+    "mr": "Marathi",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "kn": "Kannada",
+    "pa": "Punjabi",
+    "ur": "Urdu",
+    "as": "Assamese",
+    "or": "Odia",
+    "ne": "Nepali",
+    "bho": "Bhojpuri",
+    "ar": "Arabic",
+    "zh": "Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "ru": "Russian",
+}
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # State definition
 # ════════════════════════════════════════════════════════════════════════════
 
 class GraphState(TypedDict):
     question: str
+    language: str
+    translated_question: str
     documents: List[Document]
     relevant_documents: List[Document]
     generation: str
@@ -47,6 +78,26 @@ def _get_llm(temperature: float = 0.0) -> ChatOllama:
         base_url=settings.ollama_base_url,
         temperature=temperature,
     )
+
+
+def _is_english(language: str) -> bool:
+    normalized = (language or "en").strip().lower()
+    return normalized == "en" or normalized.startswith("en-") or normalized == "english"
+
+
+def _language_label(language: str) -> str:
+    normalized = (language or "en").strip().lower()
+    if normalized in LANGUAGE_NAMES:
+        return LANGUAGE_NAMES[normalized]
+    if normalized in {"bhojpuri", "bhojpuri language"}:
+        return "Bhojpuri"
+    if normalized in {"bengali", "bangla"}:
+        return "Bengali"
+    if normalized in {"gujarati"}:
+        return "Gujarati"
+    if normalized in {"malayalam"}:
+        return "Malayalam"
+    return language.strip() or "English"
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -67,6 +118,19 @@ GRADE_PROMPT = ChatPromptTemplate.from_messages([
     ),
 ])
 
+TRANSLATE_PROMPT = ChatPromptTemplate.from_messages([
+    (
+        "system",
+        "Translate the user's medical question into plain English for retrieval. "
+        "Preserve the original meaning, keep medical terms accurate, and output only the translation. "
+        "Do not answer the question.",
+    ),
+    (
+        "human",
+        "Language: {language}\nQuestion: {question}",
+    ),
+])
+
 GENERATE_PROMPT = ChatPromptTemplate.from_messages([
     (
         "system",
@@ -74,10 +138,16 @@ GENERATE_PROMPT = ChatPromptTemplate.from_messages([
         "Answer the question using ONLY the provided medical book excerpts. "
         "Be precise, clear, and cite page numbers when available. "
         "If the answer is not in the excerpts, say so honestly. "
-        "Do NOT fabricate information.\n\n"
+        "Do NOT fabricate information. "
+        "Respond in {language}.\n\n"
         "Relevant excerpts:\n{context}",
     ),
-    ("human", "{question}"),
+    (
+        "human",
+        "Original question: {question}\n"
+        "English retrieval query: {translated_question}\n"
+        "Answer language: {language}",
+    ),
 ])
 
 HALLUCINATION_PROMPT = ChatPromptTemplate.from_messages([
@@ -102,7 +172,8 @@ HALLUCINATION_PROMPT = ChatPromptTemplate.from_messages([
 def retrieve_node(state: GraphState) -> GraphState:
     """Retrieve top-k chunks from ChromaDB based on the question."""
     retriever = get_retriever()
-    docs = retriever.invoke(state["question"])
+    query = state.get("translated_question") or state["question"]
+    docs = retriever.invoke(query)
     return {**state, "documents": docs}
 
 
@@ -110,11 +181,12 @@ def grade_documents_node(state: GraphState) -> GraphState:
     """Filter retrieved chunks — keep only relevant ones."""
     llm = _get_llm(temperature=0.0)
     chain = GRADE_PROMPT | llm
+    query = state.get("translated_question") or state["question"]
 
     relevant = []
     for doc in state["documents"]:
         result = chain.invoke({
-            "question": state["question"],
+            "question": query,
             "document": doc.page_content,
         })
         if "yes" in result.content.lower():
@@ -141,6 +213,8 @@ def generate_node(state: GraphState) -> GraphState:
 
     result = chain.invoke({
         "question": state["question"],
+        "translated_question": state.get("translated_question") or state["question"],
+        "language": _language_label(state.get("language", "en")),
         "context": context,
     })
 
@@ -170,6 +244,23 @@ def check_hallucination_node(state: GraphState) -> GraphState:
     return {**state, "grounded": grounded}
 
 
+def translate_question_node(state: GraphState) -> GraphState:
+    """Translate the user's question into English for retrieval when needed."""
+    if _is_english(state.get("language", "en")):
+        return {**state, "translated_question": state["question"]}
+
+    llm = _get_llm(temperature=0.0)
+    chain = TRANSLATE_PROMPT | llm
+    result = chain.invoke({
+        "language": _language_label(state.get("language", "en")),
+        "question": state["question"],
+    })
+    translated_question = result.content.strip().strip('"')
+    if not translated_question:
+        translated_question = state["question"]
+    return {**state, "translated_question": translated_question}
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # Conditional edge
 # ════════════════════════════════════════════════════════════════════════════
@@ -189,15 +280,17 @@ def build_graph() -> StateGraph:
     graph = StateGraph(GraphState)
 
     # Add nodes
+    graph.add_node("translate_question", translate_question_node)
     graph.add_node("retrieve", retrieve_node)
     graph.add_node("grade_documents", grade_documents_node)
     graph.add_node("generate", generate_node)
     graph.add_node("check_hallucination", check_hallucination_node)
 
     # Set entry point
-    graph.set_entry_point("retrieve")
+    graph.set_entry_point("translate_question")
 
     # Edges
+    graph.add_edge("translate_question", "retrieve")
     graph.add_edge("retrieve", "grade_documents")
     graph.add_conditional_edges(
         "grade_documents",
@@ -218,7 +311,7 @@ rag_graph = build_graph()
 # Public API
 # ════════════════════════════════════════════════════════════════════════════
 
-def run_rag(question: str) -> dict:
+def run_rag(question: str, language: str = "en") -> dict:
     """
     Run the full RAG graph for a question.
 
@@ -231,6 +324,8 @@ def run_rag(question: str) -> dict:
     """
     initial_state: GraphState = {
         "question": question,
+        "language": language,
+        "translated_question": question,
         "documents": [],
         "relevant_documents": [],
         "generation": "",

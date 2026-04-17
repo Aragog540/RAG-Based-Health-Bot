@@ -16,6 +16,11 @@ class ChatRequest(BaseModel):
         description="The medical question to ask",
         examples=["What are the symptoms of Type 2 Diabetes?"],
     )
+    language: str = Field(
+        default="en",
+        description="Target language for the answer, using a language code or name",
+        examples=["en", "es", "fr"],
+    )
     session_id: Optional[str] = Field(
         default=None,
         description="Optional session ID for multi-turn conversations",
@@ -30,6 +35,10 @@ class SourceDocument(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str = Field(description="LLM-generated answer grounded in the book")
+    language: str = Field(
+        default="en",
+        description="Language used for the answer",
+    )
     sources: List[SourceDocument] = Field(
         default_factory=list,
         description="Document chunks that supported the answer",

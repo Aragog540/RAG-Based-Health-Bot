@@ -13,6 +13,8 @@ Make sure the server is running:
 import pytest
 import httpx
 
+from app.models import ChatRequest
+
 BASE_URL = "http://localhost:8000"
 
 
@@ -33,6 +35,10 @@ class TestHealth:
 
 
 class TestChat:
+    def test_chat_request_accepts_language(self):
+        request = ChatRequest(question="What is fever?", language="es")
+        assert request.language == "es"
+
     def test_chat_requires_question(self, client):
         resp = client.post("/chat", json={})
         assert resp.status_code == 422  # Pydantic validation error
