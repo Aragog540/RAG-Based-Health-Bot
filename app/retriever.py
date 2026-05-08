@@ -90,7 +90,17 @@ def get_retriever():
             docs = []
             if results and results.get("documents"):
                 for doc_text, metadata in zip(results["documents"][0], results.get("metadatas", [[]])[0]):
-                    docs.append(Document(page_content=doc_text, metadata=metadata or {}))
+                    # Ensure metadata is a dict; chromadb may return lists or other shapes
+                    if isinstance(metadata, dict):
+                        safe_meta = metadata
+                    elif metadata is None:
+                        safe_meta = {}
+                    elif isinstance(metadata, list):
+                        # convert list of key-value pairs or list of values to a dict placeholder
+                        safe_meta = {"items": metadata}
+                    else:
+                        safe_meta = {"value": metadata}
+                    docs.append(Document(page_content=doc_text, metadata=safe_meta))
             return docs
     
     return ChromaRetriever()

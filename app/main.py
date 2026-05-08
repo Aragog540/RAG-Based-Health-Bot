@@ -174,9 +174,13 @@ async def chat(request: ChatRequest):
     try:
         result = run_rag(request.question, request.language)
     except Exception as exc:
+        provider = settings.llm_provider or "LLM"
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"LLM error: {str(exc)}. Is Ollama running? (ollama serve)",
+            detail=(
+                f"LLM error: {str(exc)}. "
+                f"Check the configured provider ('{provider}') and its credentials/configuration."
+            ),
         )
 
     sources = [
