@@ -24,17 +24,17 @@ No cloud API keys are required.
 
 - Local medical Q and A over your PDF content
 - Ingestion pipeline: PDF -> text -> chunks -> embeddings -> ChromaDB
+- Upload and ingest PDFs directly from the UI
 - Agentic RAG graph with:
   - retrieval
   - relevance grading
   - answer generation
   - grounding check
-- Built-in user web UI at / for chat and ingestion
+- Built-in user web UI at / for chat, PDF upload, ingestion progress, and source preview
 - Multilingual answers with language-aware retrieval translation
 - REST API with Swagger docs
 - Health and source inspection endpoints
 - Reset endpoint to clear indexed data
-- Basic API tests with pytest
 
 ## Tech Stack
 
@@ -56,11 +56,10 @@ RAG-Based-Health-Bot-main/
 |  |- main.py
 |  |- models.py
 |  `- retriever.py
+|- chroma_db/
 |- data/
 |- scripts/
 |  `- ingest.py
-|- tests/
-|  `- test_api.py
 |- requirements.txt
 `- README.md
 ```
@@ -94,26 +93,23 @@ py -3.11 -m pip install -r requirements.txt
 
 ## Quick Start
 
-1. Put your PDF in the data folder (example: data/Medical_book.pdf)
-2. Ingest the PDF:
-
-```powershell
-py -3.11 scripts\ingest.py --pdf data\Medical_book.pdf
-```
-
-3. Start the API server:
+1. Start the API server:
 
 ```powershell
 py -3.11 -m uvicorn app.main:app --reload --port 8000
 ```
 
-4. Open user UI:
+2. Open the user UI:
 
 ```text
 http://127.0.0.1:8000/
 ```
 
-5. Open API docs:
+3. In the Knowledge Base panel, choose a PDF and click Upload and Ingest PDF.
+
+4. Ask a question in the chat panel.
+
+5. Open API docs if you want the raw endpoints:
 
 ```text
 http://127.0.0.1:8000/docs
@@ -190,11 +186,7 @@ RETRIEVAL_TOP_K=5
 py -3.11 -m pytest -q
 ```
 
-Current test layout includes:
-- health endpoint checks
-- basic chat request validation
-- sources endpoint check
-- optional skipped tests for destructive or model-dependent paths
+If you add tests back later, keep them aligned with the local Ollama-only setup and the UI upload flow.
 
 ## Architecture Overview
 
