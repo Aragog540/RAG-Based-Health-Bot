@@ -20,7 +20,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph, END
 
@@ -89,14 +88,7 @@ def _get_llm(temperature: float = 0.0) -> BaseChatModel:
             temperature=temperature,
         )
     
-    elif provider == "anthropic":
-        if not settings.anthropic_api_key:
-            raise ValueError("Anthropic API key not set. Set ANTHROPIC_API_KEY env var.")
-        return ChatAnthropic(
-            model=settings.anthropic_model,
-            api_key=settings.anthropic_api_key,
-            temperature=temperature,
-        )
+    # Anthropic support removed from this build to avoid heavy dependency resolution.
     
     elif provider == "google":
         if not settings.google_api_key:
