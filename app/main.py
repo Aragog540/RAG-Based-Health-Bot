@@ -291,14 +291,27 @@ async def get_sources(limit: int = 10):
         # `vs` is a chromadb Collection; use its get() API
         results = vs.get(limit=limit)
         chunks = []
-        docs = results.get("documents", [[]])[0]
-        metadatas = results.get("metadatas", [[]])[0]
-        ids = results.get("ids", [])
+        # documents/matadatas can be returned as either a flat list or a list-of-lists
+        raw_docs = results.get("documents") or []
+        raw_metas = results.get("metadatas") or []
+        ids = results.get("ids") or []
+
+        # Normalize documents to a flat list
+        if raw_docs and isinstance(raw_docs[0], list):
+            docs = raw_docs[0]
+        else:
+            docs = raw_docs
+
+        if raw_metas and isinstance(raw_metas[0], list):
+            metadatas = raw_metas[0]
+        else:
+            metadatas = raw_metas
+
         for i, doc in enumerate(docs):
-            meta = metadatas[i] if metadatas else {}
+            meta = metadatas[i] if i < len(metadatas) else {}
             chunks.append({
                 "id": ids[i] if i < len(ids) else None,
-                "content_preview": doc[:200],
+                "content_preview": (doc or "")[:200],
                 "metadata": meta,
             })
         return {"total_chunks": collection_count(), "sample": chunks}
