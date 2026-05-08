@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     
     # ── Google Config (if using Gemini) ────────────────────
     google_api_key: str = ""
-    google_model: str = "gemini-1.5-flash"
+    google_model: str = "gemini-2.0-flash"
 
     # ── ChromaDB ────────────────────────────────────────────
     chroma_persist_dir: str = "chroma_db"

@@ -53,7 +53,7 @@ ANTHROPIC_MODEL=claude-3-sonnet-20240229
 ```bash
 LLM_PROVIDER=google
 GOOGLE_API_KEY=your-key-here
-GOOGLE_MODEL=gemini-1.5-flash
+GOOGLE_MODEL=gemini-2.0-flash
 ```
 
 ### Step 3: Deploy to Render
