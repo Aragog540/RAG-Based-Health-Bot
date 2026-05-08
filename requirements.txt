@@ -6,13 +6,10 @@ pydantic-settings>=2.10.1
 python-multipart==0.0.9
 
 # ── LangChain / LangGraph ───────────────────────────────────
-langchain==0.2.3
-langchain-community==0.2.3
-langchain-core==0.2.3
-# Removed langchain-ollama and langchain-openai (unnecessary for Gemini deployment)
-langchain-google-genai==1.0.4    # Google Gemini models (primary LLM for HuggingFace)
-langchain-chroma==0.2.0          # Chroma integration
-langgraph==0.2.3
+langchain==0.1.20
+langchain-community==0.0.40
+langchain-google-genai==0.0.14    # Google Gemini models (primary LLM for HuggingFace)
+langgraph==0.0.62
 
 # ── Vector store ────────────────────────────────────────────
 chromadb==0.5.23

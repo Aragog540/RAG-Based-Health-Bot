@@ -1,17 +1,14 @@
 """
 app/retriever.py
 ────────────────
-ChromaDB vector store with flexible embeddings (Ollama, OpenAI, Google, etc.).
+ChromaDB vector store with Google embeddings.
 """
 
 from __future__ import annotations
 
 import chromadb
-from langchain_ollama import OllamaEmbeddings
-from langchain_openai import OpenAIEmbeddings
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_core.embeddings import Embeddings
-from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from typing import List
 
@@ -24,90 +21,104 @@ _embeddings: Embeddings | None = None
 
 
 def get_embeddings() -> Embeddings:
-    """Return cached embeddings instance based on configured provider."""
+    """Return cached Google embeddings instance."""
     global _embeddings
     if _embeddings is None:
-        provider = settings.llm_provider.lower()
-        
-        if provider == "openai":
-            if not settings.openai_api_key:
-                raise ValueError("OpenAI API key not set for embeddings.")
-            _embeddings = OpenAIEmbeddings(
-                api_key=settings.openai_api_key,
-                model="text-embedding-3-small",  # cheaper embedding model
-            )
-        
-        elif provider == "google":
-            if not settings.google_api_key:
-                raise ValueError("Google API key not set for embeddings.")
-            _embeddings = GoogleGenerativeAIEmbeddings(
-                api_key=settings.google_api_key,
-                model="models/embedding-001",
-            )
-        
-        else:  # Default to Ollama
-            _embeddings = OllamaEmbeddings(
-                model=settings.embedding_model,
-                base_url=settings.ollama_base_url,
-            )
+        if not settings.google_api_key:
+            raise ValueError("Google API key not set for embeddings.")
+        _embeddings = GoogleGenerativeAIEmbeddings(
+            api_key=settings.google_api_key,
+            model="models/embedding-001",
+        )
     return _embeddings
 
 
 # ── Vector store ─────────────────────────────────────────────────────────────
 
-_vectorstore: Chroma | None = None
+_client: chromadb.Client | None = None
 
 
-def get_vectorstore() -> Chroma:
-    global _vectorstore
-    if _vectorstore is None:
-        _vectorstore = Chroma(
-            collection_name=settings.chroma_collection_name,
-            embedding_function=get_embeddings(),
-            persist_directory=settings.chroma_persist_dir,
-        )
-    return _vectorstore
+def get_chromadb_client() -> chromadb.Client:
+    """Get ChromaDB persistent client."""
+    global _client
+    if _client is None:
+        _client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
+    return _client
+
+
+def get_vectorstore():
+    """Get or create Chroma collection."""
+    client = get_chromadb_client()
+    return client.get_or_create_collection(
+        name=settings.chroma_collection_name,
+        metadata={"hnsw:space": "cosine"}
+    )
 
 
 def get_retriever():
-    """Return a LangChain retriever that fetches top-k chunks."""
-    return get_vectorstore().as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": settings.retrieval_top_k},
-    )
+    """Return a simple retriever that queries Chroma by semantic similarity."""
+    
+    class ChromaRetriever:
+        def invoke(self, query: str) -> List[Document]:
+            """Retrieve documents similar to the query."""
+            embeddings = get_embeddings()
+            query_embedding = embeddings.embed_query(query)
+            
+            collection = get_vectorstore()
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=settings.retrieval_top_k,
+            )
+            
+            docs = []
+            if results and results.get("documents"):
+                for doc_text, metadata in zip(results["documents"][0], results.get("metadatas", [[]])[0]):
+                    docs.append(Document(page_content=doc_text, metadata=metadata or {}))
+            return docs
+    
+    return ChromaRetriever()
 
 
 def add_documents(docs: List[Document]) -> int:
     """Embed and persist a list of Document objects. Returns count added."""
-    vs = get_vectorstore()
-    vs.add_documents(docs)
-
-
+    embeddings = get_embeddings()
+    collection = get_vectorstore()
+    
+    for i, doc in enumerate(docs):
+        embedding = embeddings.embed_query(doc.page_content)
+        collection.add(
+            ids=[f"doc_{i}_{hash(doc.page_content) % 10000}"],
+            embeddings=[embedding],
+            documents=[doc.page_content],
+            metadatas=[doc.metadata or {}],
+        )
+    
     return len(docs)
 
 
 def collection_count() -> int:
     """Return total number of chunks stored in ChromaDB."""
     try:
-        vs = get_vectorstore()
-        return vs._collection.count()
+        collection = get_vectorstore()
+        return collection.count()
     except Exception:
         return 0
 
 
+_client: chromadb.Client | None = None
+
+
 def reset_collection() -> None:
     """Delete all documents from the collection and reset cache."""
-    global _vectorstore
-    _vectorstore = None
-
-    client = chromadb.PersistentClient(path=settings.chroma_persist_dir)
-
+    global _client
+    client = get_chromadb_client()
+    
     # Try hard delete first (fast and complete)
     try:
         client.delete_collection(settings.chroma_collection_name)
     except Exception:
         pass
-
+    
     # Always ensure an empty collection exists after reset
     collection = client.get_or_create_collection(settings.chroma_collection_name)
     try:
