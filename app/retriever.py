@@ -105,9 +105,6 @@ def collection_count() -> int:
         return 0
 
 
-_client: chromadb.Client | None = None
-
-
 def reset_collection() -> None:
     """Delete all documents from the collection and reset cache."""
     global _client
