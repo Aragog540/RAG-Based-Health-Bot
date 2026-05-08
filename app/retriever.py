@@ -137,26 +137,21 @@ def collection_count() -> int:
     """Return total number of chunks stored in ChromaDB."""
     try:
         collection = get_vectorstore()
-        return collection.count()
-    except Exception:
+        # ChromaDB collections don't have .count(), get data and count
+        result = collection.get()
+        return len(result.get("ids", [])) if result else 0
+    except Exception as e:
+        print(f"Error counting collection: {e}")
         return 0
 
 
 def reset_collection() -> None:
     """Delete all documents from the collection and reset cache."""
     global _client
-    client = get_chromadb_client()
-    
-    # Try hard delete first (fast and complete)
     try:
+        client = get_chromadb_client()
         client.delete_collection(settings.chroma_collection_name)
-    except Exception:
-        pass
-    
-    # Always ensure an empty collection exists after reset
-    collection = client.get_or_create_collection(settings.chroma_collection_name)
-    try:
-        collection.delete(where={})
-    except Exception:
-        # If clear-by-filter is unsupported, ignore — collection is already recreated.
-        pass
+        # Recreate empty collection
+        client.get_or_create_collection(settings.chroma_collection_name)
+    except Exception as e:
+        print(f"Error resetting collection: {e}")
