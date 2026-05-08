@@ -18,7 +18,8 @@ from langchain_core.documents import Document
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models import BaseChatModel
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_ollama import ChatOllama
+from langgraph.graph import StateGraph, END
 
 from app.config import settings
 from app.retriever import get_retriever
@@ -73,15 +74,13 @@ class GraphState(TypedDict):
 # ════════════════════════════════════════════════════════════════════════════
 
 def _get_llm(temperature: float = 0.0) -> BaseChatModel:
-    """Factory function to get the configured LLM provider (Google Gemini for deployment)."""
-    # For HuggingFace deployment, we only support Google Gemini
-    if not settings.google_api_key:
-        raise ValueError("Google API key not set. Set GOOGLE_API_KEY env var.")
-    return ChatGoogleGenerativeAI(
-        model=settings.google_model,
-        api_key=settings.google_api_key,
+    """Return the local Ollama chat model used for offline runs."""
+    if settings.llm_provider.lower() != "ollama":
+        raise ValueError("This build is configured for local Ollama runs only.")
+    return ChatOllama(
+        model=settings.llm_model,
+        base_url=settings.ollama_base_url,
         temperature=temperature,
-        convert_system_message_to_human=True,
     )
 
 
@@ -164,7 +163,7 @@ GRADE_PROMPT = ChatPromptTemplate.from_messages([
     ),
     (
         "human",
-        "Question: {question}\n\nDocument chunk:\n{document}",
+        "Question: {question}\n\nDocument chunk: {document}",
     ),
 ])
 
@@ -210,7 +209,7 @@ HALLUCINATION_PROMPT = ChatPromptTemplate.from_messages([
     ),
     (
         "human",
-        "Answer: {generation}\n\nSource documents:\n{documents}",
+        "Answer: {generation}\n\nSource documents: {documents}",
     ),
 ])
 
@@ -326,25 +325,35 @@ def decide_after_grading(state: GraphState) -> str:
 # Build graph
 # ════════════════════════════════════════════════════════════════════════════
 
-def run_rag_orchestration(state: GraphState) -> GraphState:
-    """Simple sequential orchestration of RAG pipeline (no langgraph dependency)."""
-    
-    # Step 1: Translate question to English if needed
-    state = translate_question_node(state)
-    
-    # Step 2: Retrieve relevant documents
-    state = retrieve_node(state)
-    
-    # Step 3: Grade documents for relevance
-    state = grade_documents_node(state)
-    
-    # Step 4: Generate answer
-    state = generate_node(state)
-    
-    # Step 5: Check for hallucination
-    state = check_hallucination_node(state)
-    
-    return state
+def build_graph() -> StateGraph:
+    graph = StateGraph(GraphState)
+
+    # Add nodes
+    graph.add_node("translate_question", translate_question_node)
+    graph.add_node("retrieve", retrieve_node)
+    graph.add_node("grade_documents", grade_documents_node)
+    graph.add_node("generate", generate_node)
+    graph.add_node("check_hallucination", check_hallucination_node)
+
+    # Set entry point
+    graph.set_entry_point("translate_question")
+
+    # Edges
+    graph.add_edge("translate_question", "retrieve")
+    graph.add_edge("retrieve", "grade_documents")
+    graph.add_conditional_edges(
+        "grade_documents",
+        decide_after_grading,
+        {"generate": "generate"},
+    )
+    graph.add_edge("generate", "check_hallucination")
+    graph.add_edge("check_hallucination", END)
+
+    return graph.compile()
+
+
+# Compiled graph (singleton)
+rag_graph = build_graph()
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -353,7 +362,7 @@ def run_rag_orchestration(state: GraphState) -> GraphState:
 
 def run_rag(question: str, language: str = "en") -> dict:
     """
-    Run the full RAG pipeline for a question.
+    Run the full RAG graph for a question.
 
     Returns:
         {
@@ -374,7 +383,7 @@ def run_rag(question: str, language: str = "en") -> dict:
     }
 
     try:
-        final_state = run_rag_orchestration(initial_state)
+        final_state = rag_graph.invoke(initial_state)
     except Exception as exc:
         if _is_quota_error(exc):
             fallback_docs = get_retriever().invoke(question)
