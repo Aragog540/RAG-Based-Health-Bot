@@ -288,12 +288,16 @@ async def get_sources(limit: int = 10):
 
     try:
         vs = get_vectorstore()
-        results = vs._collection.get(limit=limit)
+        # `vs` is a chromadb Collection; use its get() API
+        results = vs.get(limit=limit)
         chunks = []
-        for i, doc in enumerate(results["documents"]):
-            meta = results["metadatas"][i] if results["metadatas"] else {}
+        docs = results.get("documents", [[]])[0]
+        metadatas = results.get("metadatas", [[]])[0]
+        ids = results.get("ids", [])
+        for i, doc in enumerate(docs):
+            meta = metadatas[i] if metadatas else {}
             chunks.append({
-                "id": results["ids"][i],
+                "id": ids[i] if i < len(ids) else None,
                 "content_preview": doc[:200],
                 "metadata": meta,
             })
