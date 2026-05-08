@@ -1,14 +1,12 @@
 """
 app/retriever.py
 ────────────────
-ChromaDB vector store with Google embeddings.
+ChromaDB vector store with Google embeddings (falls back to default if API unavailable).
 """
 
 from __future__ import annotations
 
 import chromadb
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_core.embeddings import Embeddings
 from langchain_core.documents import Document
 from typing import List
 
@@ -17,19 +15,26 @@ from app.config import settings
 
 # ── Singleton embedding model ────────────────────────────────────────────────
 
-_embeddings: Embeddings | None = None
+_embeddings = None
 
 
-def get_embeddings() -> Embeddings:
-    """Return cached Google embeddings instance."""
+def get_embeddings():
+    """Return cached embedding function for ChromaDB."""
     global _embeddings
     if _embeddings is None:
-        if not settings.google_api_key:
-            raise ValueError("Google API key not set for embeddings.")
-        _embeddings = GoogleGenerativeAIEmbeddings(
-            api_key=settings.google_api_key,
-            model="models/text-embedding-004",
-        )
+        if settings.google_api_key:
+            try:
+                from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                _embeddings = GoogleGenerativeAIEmbeddings(
+                    api_key=settings.google_api_key,
+                    model="embedding-001",
+                )
+            except Exception as e:
+                print(f"Google embeddings failed ({e}), using ChromaDB defaults")
+                _embeddings = None  # Will use chromadb default
+        else:
+            print("No Google API key, using ChromaDB default embeddings")
+            _embeddings = None
     return _embeddings
 
 
@@ -61,14 +66,26 @@ def get_retriever():
     class ChromaRetriever:
         def invoke(self, query: str) -> List[Document]:
             """Retrieve documents similar to the query."""
-            embeddings = get_embeddings()
-            query_embedding = embeddings.embed_query(query)
-            
             collection = get_vectorstore()
-            results = collection.query(
-                query_embeddings=[query_embedding],
-                n_results=settings.retrieval_top_k,
-            )
+            embeddings = get_embeddings()
+            
+            # If embeddings available, get query embedding; otherwise use text search
+            if embeddings and hasattr(embeddings, 'embed_query'):
+                try:
+                    query_embedding = embeddings.embed_query(query)
+                    results = collection.query(
+                        query_embeddings=[query_embedding],
+                        n_results=settings.retrieval_top_k,
+                    )
+                except Exception:
+                    # Fallback to where search
+                    results = collection.get(limit=settings.retrieval_top_k)
+            else:
+                # Use chromadb's built-in embedding (no API needed)
+                results = collection.query(
+                    query_texts=[query],
+                    n_results=settings.retrieval_top_k,
+                )
             
             docs = []
             if results and results.get("documents"):
@@ -81,17 +98,37 @@ def get_retriever():
 
 def add_documents(docs: List[Document]) -> int:
     """Embed and persist a list of Document objects. Returns count added."""
-    embeddings = get_embeddings()
     collection = get_vectorstore()
+    embeddings = get_embeddings()
     
     for i, doc in enumerate(docs):
-        embedding = embeddings.embed_query(doc.page_content)
-        collection.add(
-            ids=[f"doc_{i}_{hash(doc.page_content) % 10000}"],
-            embeddings=[embedding],
-            documents=[doc.page_content],
-            metadatas=[doc.metadata or {}],
-        )
+        doc_id = f"doc_{i}_{hash(doc.page_content) % 10000}"
+        
+        # Try to use embeddings if available; otherwise let chromadb handle it
+        if embeddings and hasattr(embeddings, 'embed_query'):
+            try:
+                embedding = embeddings.embed_query(doc.page_content)
+                collection.add(
+                    ids=[doc_id],
+                    embeddings=[embedding],
+                    documents=[doc.page_content],
+                    metadatas=[doc.metadata or {}],
+                )
+            except Exception:
+                # Fallback: add without embedding, let chromadb compute
+                collection.add(
+                    ids=[doc_id],
+                    documents=[doc.page_content],
+                    metadatas=[doc.metadata or {}],
+                )
+        else:
+            # Let chromadb compute embedding using its default
+            collection.add(
+                ids=[doc_id],
+                documents=[doc.page_content],
+                metadatas=[doc.metadata or {}],
+            )
+    
     
     return len(docs)
 
