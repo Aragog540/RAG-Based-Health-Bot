@@ -85,6 +85,51 @@ def _get_llm(temperature: float = 0.0) -> BaseChatModel:
     )
 
 
+def _is_quota_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return (
+        "quota" in message
+        or "rate limit" in message
+        or "429" in message
+        or "resource_exhausted" in message
+        or "free_tier" in message
+    )
+
+
+def _build_fallback_result(reason: str, documents: List[Document]) -> dict:
+    sources = []
+    for doc in documents[:3]:
+        sources.append({
+            "content": doc.page_content[:400],
+            "page": doc.metadata.get("page"),
+            "source": doc.metadata.get("source"),
+        })
+
+    if sources:
+        excerpts = []
+        for index, source in enumerate(sources, 1):
+            page_label = f" (page {source['page']})" if source.get("page") is not None else ""
+            excerpts.append(f"{index}. {source['content']}{page_label}")
+        answer = (
+            "I couldn't generate a Gemini answer right now because the API quota was exceeded. "
+            "Here are the most relevant excerpts instead:\n\n" + "\n\n".join(excerpts)
+        )
+    else:
+        answer = (
+            "I couldn't generate a Gemini answer right now because the API quota was exceeded, "
+            "and no source documents were available to summarize."
+        )
+
+    if reason:
+        answer += f"\n\nFallback reason: {reason}"
+
+    return {
+        "answer": answer,
+        "sources": sources,
+        "grounded": False,
+    }
+
+
 def _is_english(language: str) -> bool:
     normalized = (language or "en").strip().lower()
     return normalized == "en" or normalized.startswith("en-") or normalized == "english"
@@ -328,7 +373,13 @@ def run_rag(question: str, language: str = "en") -> dict:
         "messages": [],
     }
 
-    final_state = run_rag_orchestration(initial_state)
+    try:
+        final_state = run_rag_orchestration(initial_state)
+    except Exception as exc:
+        if _is_quota_error(exc):
+            fallback_docs = get_retriever().invoke(question)
+            return _build_fallback_result(str(exc), fallback_docs)
+        raise
 
     sources = []
     for doc in (final_state.get("relevant_documents") or final_state.get("documents", [])):
