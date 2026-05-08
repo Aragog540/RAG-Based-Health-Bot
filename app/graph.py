@@ -81,6 +81,7 @@ def _get_llm(temperature: float = 0.0) -> BaseChatModel:
         model=settings.google_model,
         api_key=settings.google_api_key,
         temperature=temperature,
+        convert_system_message_to_human=True,
     )
 
 
