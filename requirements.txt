@@ -8,11 +8,11 @@ python-multipart==0.0.9
 # ── LangChain / LangGraph ───────────────────────────────────
 langchain==0.2.3
 langchain-community==0.2.3
-langchain-core==0.2.5
-langchain-ollama==0.2.0          # FREE local LLM via Ollama
-langchain-openai==0.2.0          # OpenAI GPT models
+langchain-core==0.2.3
+# Removed langchain-ollama (local dev only; conflicts with langchain-core)
+langchain-openai==0.2.0          # Optional: OpenAI GPT models
 # langchain-anthropic removed to avoid slow resolver during Docker build
-langchain-google-genai==1.0.4    # Google Gemini models
+langchain-google-genai==1.0.4    # Google Gemini models (for HuggingFace deployment)
 langchain-chroma==0.2.0          # Chroma integration
 langgraph==0.2.3
 
