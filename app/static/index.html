@@ -25,13 +25,126 @@
 
     * { box-sizing: border-box; }
 
+    :root {
+      --bg: #fafaf8;
+      --bg-2: #f5f3f0;
+      --panel: #ffffff;
+      --ink: #2c2c2c;
+      --muted: #878787;
+      --brand: #6b7280;
+      --brand-2: #9ca3af;
+      --danger: #dc2626;
+      --ok: #6b7280;
+      --ring: rgba(107, 114, 128, 0.15);
+      --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      --radius: 16px;
+      --sidebar-w: 280px;
+      --sidebar-collapsed-w: 70px;
+      --sidebar-bg: #f9f8f6;
+      --sidebar-hover: #ebe9e4;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
       color: var(--ink);
       font-family: Manrope, Segoe UI, sans-serif;
-      background: linear-gradient(120deg, #fafaf8, #f5f3f0);
+      background: linear-gradient(120deg, var(--bg), var(--bg-2));
       animation: pageIn 0.6s ease-out;
+      overflow-x: hidden;
+    }
+
+    .app-layout {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--sidebar-bg);
+      border-right: 1px solid #e5e1dc;
+      display: flex;
+      flex-direction: column;
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+      overflow: hidden;
+      z-index: 10;
+    }
+    .sidebar.collapsed { width: var(--sidebar-collapsed-w); }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #e5e1dc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 64px;
+    }
+    .sidebar-header h2 { margin:0; font-size: 1.1rem; font-family: Space Grotesk, sans-serif; white-space: nowrap; color: var(--ink); }
+    .sidebar.collapsed .sidebar-header h2 { opacity: 0; pointer-events: none; }
+
+    .toggle-btn {
+      background: transparent; border: none; cursor: pointer; padding: 6px; border-radius: 8px; color: var(--muted);
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+    }
+    .toggle-btn:hover { background: var(--sidebar-hover); color: var(--ink); }
+
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-x: hidden;
+    }
+
+    .new-chat-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; white-space: nowrap; transition: padding 0.3s;
+    }
+    .sidebar.collapsed .new-chat-btn span { display: none; }
+    .sidebar.collapsed .new-chat-btn { padding: 11px 0; }
+
+    .search-bar { width: 100%; margin-bottom: 8px; transition: opacity 0.2s; }
+    .sidebar.collapsed .search-bar { opacity: 0; pointer-events: none; height: 0; margin: 0; padding: 0; border: none; }
+
+    .session-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .session-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; border-radius: 12px; cursor: pointer;
+      background: transparent; border: 1px solid transparent; transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .session-item:hover { background: var(--sidebar-hover); }
+    .session-item.active { background: #fff; border-color: #d9d5cf; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+
+    .session-info { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
+    .session-title { font-size: 0.9rem; font-weight: 600; text-overflow: ellipsis; overflow: hidden; color: var(--ink); }
+    .session-time { font-size: 0.75rem; color: var(--muted); margin-top: 2px;}
+
+    .sidebar.collapsed .session-info { display: none; }
+    .sidebar.collapsed .session-item { padding: 10px; justify-content: center; }
+
+    .session-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--brand); display: flex; align-items: center; justify-content: center;}
+    .sidebar:not(.collapsed) .session-icon { display: none; }
+
+    .session-actions { display: none; gap: 4px; }
+    .session-item:hover .session-actions { display: flex; }
+    .sidebar.collapsed .session-actions { display: none !important; }
+
+    .action-btn { background: transparent; border:none; padding:4px; border-radius:4px; cursor:pointer; color:var(--muted); }
+    .action-btn:hover { color: var(--ink); background: #e5e1dc; }
+    .action-btn.del:hover { color: var(--danger); background: #f5d4d4; }
+
+    .main-area {
+      flex: 1;
+      overflow-y: auto;
+      height: 100vh;
+      position: relative;
     }
 
     @keyframes pageIn {
@@ -40,10 +153,11 @@
     }
 
     .shell {
-      width: min(1150px, 92vw);
+      width: min(1150px, 92%);
       margin: 24px auto 42px;
       display: grid;
       gap: 18px;
+      transition: width 0.3s ease;
     }
 
     .hero {
@@ -227,6 +341,8 @@
       border-radius: 12px;
       padding: 14px;
       min-height: 120px;
+      max-height: 50vh;
+      overflow-y: auto;
     }
 
     .answer {
@@ -333,8 +449,26 @@
   </style>
 </head>
 <body>
-  <main class="shell">
-    <section class="hero">
+  <div class="app-layout">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h2>Chat History</h2>
+        <button id="toggleSidebarBtn" class="toggle-btn" title="Toggle Sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="sidebar-content">
+        <button id="newChatBtn" class="btn-primary new-chat-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>New Chat</span>
+        </button>
+        <input type="text" id="searchHistory" class="search-bar" placeholder="Search history..." />
+        <div id="historyList" class="session-list"></div>
+      </div>
+    </aside>
+    <div class="main-area">
+      <main class="shell">
+        <section class="hero">
       <span class="tag">Medical RAG Console</span>
       <h1>Talk to your medical knowledge base in plain language.</h1>
       <p>Ask a question, upload a new PDF, and inspect sources, all from one interface designed for non-technical users.</p>
@@ -425,10 +559,19 @@
       </aside>
     </section>
 
-    <div class="foot">Built on FastAPI + LangGraph + Ollama + ChromaDB</div>
-  </main>
+        <div class="foot">Built on FastAPI + LangGraph + Ollama + ChromaDB</div>
+      </main>
+    </div>
+  </div>
 
   <script>
+    let sessions = JSON.parse(localStorage.getItem("health_bot_sessions") || "[]");
+    let currentSessionId = localStorage.getItem("health_bot_session");
+    if (!currentSessionId) {
+      currentSessionId = crypto.randomUUID();
+      localStorage.setItem("health_bot_session", currentSessionId);
+    }
+
     const serviceStatus = document.getElementById("serviceStatus");
     const llmModel = document.getElementById("llmModel");
     const chunkCount = document.getElementById("chunkCount");
@@ -450,6 +593,12 @@
     const ingestProgressWrap = document.getElementById("ingestProgressWrap");
     const ingestProgressFill = document.getElementById("ingestProgressFill");
     const ingestProgressLabel = document.getElementById("ingestProgressLabel");
+
+    const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+    const sidebar = document.getElementById("sidebar");
+    const historyList = document.getElementById("historyList");
+    const searchHistory = document.getElementById("searchHistory");
+    const newChatBtn = document.getElementById("newChatBtn");
 
     function delay(ms) {
       return new Promise((resolve) => setTimeout(resolve, ms));
@@ -518,7 +667,7 @@
       askBtn.disabled = true;
       setLoading(chatStatus, "Generating answer...");
 
-      const sessionId = localStorage.getItem("health_bot_session") || crypto.randomUUID();
+      const sessionId = currentSessionId;
       localStorage.setItem("health_bot_session", sessionId);
 
       try {
@@ -547,13 +696,25 @@
           : "<div class=\"muted\">No sources returned.</div>";
 
         const answer = (data.answer || "").replace(/</g, "&lt;");
-        chatOutput.innerHTML = `
+        const answerHtml = `
           <div class=\"answer\">${answer}</div>
           <div style=\"margin-top:10px; font-size:0.84rem; color:#4a6457; font-weight:700;\">
             Grounded: ${data.grounded ? "Yes" : "No"}
           </div>
           ${sourcesHtml}
         `;
+        
+        const existingHtml = chatOutput.querySelector('.muted') ? "" : chatOutput.innerHTML;
+        chatOutput.innerHTML = existingHtml + `
+          <div style="margin-bottom:24px; border-bottom:1px solid #e5e1dc; padding-bottom:16px;">
+            <div style="margin-bottom:8px;"><strong>Q: </strong>${question.replace(/</g, "&lt;")}</div>
+            ${answerHtml}
+          </div>
+        `;
+        chatOutput.scrollTo(0, chatOutput.scrollHeight);
+
+        saveMessageToSession(sessionId, question, answer, sourcesHtml, data.grounded);
+        renderSessions(searchHistory.value);
 
         setStatus(chatStatus, "Answer generated successfully.");
         await loadHealth();
@@ -679,6 +840,120 @@
       }
     }
 
+    function saveMessageToSession(id, q, a, sourcesHtml, grounded) {
+      let session = sessions.find(s => s.id === id);
+      if (!session) {
+        session = {
+          id: id,
+          title: q.length > 30 ? q.substring(0, 30) + "..." : q,
+          timestamp: new Date().toISOString(),
+          messages: []
+        };
+        sessions.unshift(session);
+      }
+      session.messages.push({ q, a, sourcesHtml, grounded });
+      localStorage.setItem("health_bot_sessions", JSON.stringify(sessions));
+    }
+
+    function startNewChat() {
+      currentSessionId = crypto.randomUUID();
+      localStorage.setItem("health_bot_session", currentSessionId);
+      chatOutput.innerHTML = "<div class='muted'>Answer will appear here.</div>";
+      questionEl.value = "";
+      setStatus(chatStatus, "");
+      renderSessions(searchHistory.value);
+    }
+
+    function renderSessions(filter = "") {
+      historyList.innerHTML = "";
+      const filtered = sessions.filter(s => s.title.toLowerCase().includes(filter.toLowerCase()));
+      
+      filtered.forEach(s => {
+        const item = document.createElement("div");
+        item.className = "session-item" + (s.id === currentSessionId ? " active" : "");
+        item.onclick = (e) => {
+          if (!e.target.closest(".action-btn")) {
+            loadSession(s.id);
+          }
+        };
+
+        const icon = `<div class="session-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>`;
+        const date = new Date(s.timestamp).toLocaleDateString();
+        const info = `<div class="session-info"><div class="session-title">${s.title}</div><div class="session-time">${date}</div></div>`;
+        const actions = `
+          <div class="session-actions">
+            <button class="action-btn edit" onclick="renameSession('${s.id}')" title="Rename">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="action-btn del" onclick="deleteSession('${s.id}')" title="Delete">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        `;
+        item.innerHTML = icon + info + actions;
+        historyList.appendChild(item);
+      });
+    }
+
+    function loadSession(id) {
+      currentSessionId = id;
+      localStorage.setItem("health_bot_session", currentSessionId);
+      const session = sessions.find(s => s.id === id);
+      if (session) {
+        chatOutput.innerHTML = "";
+        session.messages.forEach(m => {
+          const block = document.createElement("div");
+          block.style.marginBottom = "24px";
+          block.style.borderBottom = "1px solid #e5e1dc";
+          block.style.paddingBottom = "16px";
+          block.innerHTML = `
+            <div style="margin-bottom:8px;"><strong>Q: </strong>${m.q.replace(/</g, "&lt;")}</div>
+            ${m.a ? `<div class="answer">${m.a}</div>` : ''}
+            <div style="margin-top:10px; font-size:0.84rem; color:#4a6457; font-weight:700;">Grounded: ${m.grounded ? "Yes" : "No"}</div>
+            ${m.sourcesHtml || ''}
+          `;
+          chatOutput.appendChild(block);
+        });
+        chatOutput.scrollTo(0, chatOutput.scrollHeight);
+        setStatus(chatStatus, "");
+      }
+      renderSessions(searchHistory.value);
+    }
+
+    window.renameSession = function(id) {
+      const session = sessions.find(s => s.id === id);
+      if (session) {
+        const newTitle = prompt("Enter new title:", session.title);
+        if (newTitle !== null && newTitle.trim() !== "") {
+          session.title = newTitle.trim();
+          localStorage.setItem("health_bot_sessions", JSON.stringify(sessions));
+          renderSessions(searchHistory.value);
+        }
+      }
+    };
+
+    window.deleteSession = function(id) {
+      if (confirm("Are you sure you want to delete this session?")) {
+        sessions = sessions.filter(s => s.id !== id);
+        localStorage.setItem("health_bot_sessions", JSON.stringify(sessions));
+        if (currentSessionId === id) {
+          startNewChat();
+        } else {
+          renderSessions(searchHistory.value);
+        }
+      }
+    };
+
+    toggleSidebarBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("collapsed");
+    });
+
+    newChatBtn.addEventListener("click", startNewChat);
+
+    searchHistory.addEventListener("input", (e) => {
+      renderSessions(e.target.value);
+    });
+
     askBtn.addEventListener("click", askQuestion);
     healthBtn.addEventListener("click", loadHealth);
     sourcesBtn.addEventListener("click", previewSources);
@@ -697,6 +972,12 @@
 
     loadHealth();
     document.documentElement.lang = languageEl.value;
+
+    // Initial render and load
+    renderSessions();
+    if (sessions.some(s => s.id === currentSessionId)) {
+      loadSession(currentSessionId);
+    }
   </script>
 </body>
 </html>
